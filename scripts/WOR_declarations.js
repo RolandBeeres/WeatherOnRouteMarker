@@ -1,19 +1,15 @@
-﻿
-
-
-
-var useGPS = true;
+﻿var useGPS = true;
 var WeatherServiceRequestURL = "";
-var GPSLocationActual = [55.072917200215191, 13.711061468866212] //has latlon of current position. (Timer or listener constantly updating GPS is probably required)
-var GPSRefreshInterval = 5000; //millsec between update vesselactual position
-var GPSRefreshCounter = 0;
-var weatherRefreshInterval = (10 * 60 * 1000) //ten minuts
+// var GPSLocationActual = [55.072917200215191, 13.711061468866212] //has latlon of current position. (Timer or listener constantly updating GPS is probably required)
+// var GPSRefreshInterval = 5000; //millsec between update vesselactual position
+// var GPSRefreshCounter = 0;
+var weatherRefreshInterval = (10 * 60 * 1000) //ten minutes
 var weatherRefreshCounter = 0;
 var weatherFetchComplete = false;
-var CompassHeadingActual = 0.0; //heading of vesselactual
-var CompassHeadingOffset = 0; //set in options
+// var CompassHeadingActual = 0.0; //heading of vesselactual
+// var CompassHeadingOffset = 0; //set in options
 var mapRenderComplete = false;
-var ghostvesselMarker, vesselactualMarker; //both ship icons
+// var ghostvesselMarker, vesselactualMarker; //both ship icons
 var mapZoomLevel = 9;
 
 
@@ -21,24 +17,25 @@ var mapZoomLevel = 9;
 var control_displaymarkertext = true; //displays marker text (eta day & time)
 var control_scale = 0.8; //route marker scaling control.
 var control_clickmarkerenabled = true;
-var control_windmapAreaResolution = 10; //XX by XX, doesnt care about viewport proportions
 
 
-//var today = new Date();
-//var dd = today.getDate();
-//var mm = today.getMonth() + 1; //January is 0!
-//var yyyy = today.getFullYear();
-//if (dd < 10) {
+// var today = new Date();
+// var dd = today.getDate();
+// var mm = today.getMonth() + 1; //January is 0!
+// var yyyy = today.getFullYear();
+// if (dd < 10) {
 //    dd = '0' + dd
-//}
-//if (mm < 10) {
+// }
+// if (mm < 10) {
 //    mm = '0' + mm
-//}
-//today = mm + '/' + dd + '/' + yyyy;
-//today = yyyy + '-' + mm + '-' + dd;
+// }
+// // today = mm + '/' + dd + '/' + yyyy;
+// today = yyyy + '-' + mm + '-' + dd;
 
 
-var today = "2018-05-21"
+var today = "2018-07-08";
+
+//populate a route object and add weather data to it
 
 var route = {
 	waypoints: [
@@ -49,97 +46,78 @@ var route = {
 	    { id: 4, name: "pos5", legspeedmin: 10, legspeedmax: 11, lon: 11.930997774565851, lat: 54.569907839824936 },
 	    { id: 5, name: "pos6", legspeedmin: 10, legspeedmax: 11, lon: 11.883514521671373, lat: 54.567784008455305}
 	],
-	scheduleElement: [ //waypoint weatherdata is saved in scheduleelement
-        { waypointId: 0, eta: today + "T11:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-        { waypointId: 1, eta: today + "T15:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-        { waypointId: 2, eta: today + "T20:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-        { waypointId: 3, eta: today + "T01:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-        { waypointId: 4, eta: today + "T08:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
-        { waypointId: 4, eta: today + "T16:00:01.000Z", nextwaypointdistance: 0, zoomdisplay: 0, winddirection: 0, windspeed: 0, waveheight: 0, wavedirection: 0, currentdirection: 0, currentspeed: 0 },
+	scheduleElement: [ //waypoint weatherdata is saved in extensions
+        { waypointId: 0, eta: today + "T11:00:01.000Z"},
+        { waypointId: 1, eta: today + "T15:00:01.000Z"},
+        { waypointId: 2, eta: today + "T20:00:01.000Z"},
+        { waypointId: 3, eta: today + "T01:00:01.000Z"},
+        { waypointId: 4, eta: today + "T08:00:01.000Z"},
+        { waypointId: 5, eta: today + "T16:00:01.000Z"}
 	],
-	weatherdata: { //returned data from weather service
-		ghostvessel: { //time projected weather on pos of ghostvessel
-			winddirection: 0,
-			windspeed: 0,
-			waveheight: 0,
-			wavedirection: 0,
-			currentdirection: 0,
-			currentspeed: 0,
-		},
-		vesselactual: { //current weather on GPS pos of ship or start pos on route if no GPS
-			winddirection: 0,
-			windspeed: 0,
-			waveheight: 0,
-			wavedirection: 0,
-			currentdirection: 0,
-			currentspeed: 0,
-		},
-		clickmarker: { //current weather on position clicked on map (tap also works)
-			winddirection: 0,
-			windspeed: 0,
-			waveheight: 0,
-			wavedirection: 0,
-			currentdirection: 0,
-			currentspeed: 0,
-		},
-		windmapActual: { //current wind on area of map
-			coordinatesArray: [],
-			winddirectionArray: [],
-			windspeedArray: [],
-		},
-	},
-	mapfeatures: { //styling and default values overwritten at create - faster than asking the map each time
-		ghostvessel: {
-			currentmarkerscale: 0.64,
-			wavemarkerscale: 0.64,
-			windmarkerscale: 1.3,
-			compassscale: 0.6,
-		},
-		vesselactual: {
-			currentmarkerscale: 0.84,
-			wavemarkerscale: 0.84,
-			windmarkerscale: 1.5,
-			compassscale: 0.8,
-		},
-		clickmarker: {
-			currentmarkerscale: 0.84,
-			wavemarkerscale: 0.84,
-			windmarkerscale: 1.5,
-			compassscale: 0.8,
-			lon: 0,
-			lat:0,
-		}
-},
+    extensions: {
+        weathermarkersettings: [
+            {waypointId:0, nextwaypointdistance: 0.0, zoomdisplay: 0},
+            {waypointId:1, nextwaypointdistance: 0.0, zoomdisplay: 0},
+            {waypointId:2, nextwaypointdistance: 0.0, zoomdisplay: 0},
+            {waypointId:3, nextwaypointdistance: 0.0, zoomdisplay: 0},
+            {waypointId:4, nextwaypointdistance: 0.0, zoomdisplay: 0},
+            {waypointId:5, nextwaypointdistance: 0.0, zoomdisplay: 0}
+        ],
+        weatherdata: [], //should be populated by async request
+        clickmarkerdata: { // same as a single weatherdata entry, populated here as an example.
+            error: 0,
+            metocForecast: {
+                created: "2018-07-06T08:45:16.542+0000" //time of request
+            },
+            forecasts: [
+                {
+                    lat: 75.0, //forecast service calculated position
+                    lon: -15.0,
+                    time: "2018-07-06T11:00:00.000+0000", //forecast actual time
+                    winddir: {
+                        forecast: 0
+                    },
+                    windspeed: {
+                        forecast: 0
+                    },
+                    currentdir: {
+                        forecast: 0
+                    },
+                    currentspeed: {
+                        forecast: 0
+                    },
+                    wavedir: {
+                        forecast: 0
+                    },
+                    waveheight: {
+                        forecast: 0
+                    },
+                    waveperiod: {
+                        forecast: 0
+                    },
+                    temperature: {
+                        forecast: 0
+                    }
+                }
+            ]
+        },
+        mapfeatures: { //styling and default values change - faster than asking the map - good for debug
+            clickmarker: {
+                currentmarkerscale: 0.84,
+                wavemarkerscale: 0.94,
+                windmarkerscale: 1.5,
+                compassscale: 0.8,
+                lon: 0,
+                lat: 0
+            }
+        }
+    }
+};
 
-}
-
-
-//var RouteDotRadius = 20; //radius of route markers, determines size of all route dots.
-var WOR = {};
-WOR.RouteDotRadius = 12;
-WOR.windowWidthAtInit = $(window).width();
-WOR.windowWidthAfterResize = 0;
-WOR.ShipIconPosition = 0; //position in percentage of the routebar - saved everytime icon is moved - repositioned everytime map and browser is scaled or moved to fit.
-
-
-
-
-
-
-//FOR TESTING PURPOSES - sets the time of the route 24 hours from client time
-function setTestParam() {
-	for (var i = 0; i != route.waypoints.length; i++) {
-
-		//set new ETA
-		//var now = new Date();
-		//now.setTime(now.getTime() + (1000 * 60 * 60 * 12)); //add 12 hours to now
-		//route.scheduleElement[i].eta = now.toISOString().split("T")[0] + "T"+(route.scheduleElement[i].eta).split("T")[1];
-
-		//set wave data for test
-		//route.scheduleElement[i].waveheight = 1.6;
-		//route.scheduleElement[i].wavedirection = 330;
-
-
-	}
-}
-setTestParam();
+//TODO: rename WOR object to something that makes sense
+var WOR = {
+    routeDotRadius: 12, // size of WORM on map
+    // windowWidthAtInit: $(window).width(),
+    windowWidthAfterResize: 0,
+    ShipIconPosition: 0 //position in percentage of the routebar - saved everytime icon is moved - repositioned everytime map and browser is scaled or moved to fit.
+};

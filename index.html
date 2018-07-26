@@ -2,50 +2,38 @@
 <html>
 <head>
     <title>BW - WORM - prototype</title>
+    <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="msapplication-tap-highlight" content="no" />
+    <!-- plugins -->
     <link rel="stylesheet" href="css/ol.css" type="text/css">
-    <!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
     <script src="scripts/ol.js"></script>
-    <script src="scripts/jquery.min.js"></script> <!-- still used in the menu dropdowns -->
-    <link rel="stylesheet" href="css/WeatherOnRoute.css" />
     <script src="scripts/turf.min.js"></script>
+    <!-- WOR -->
+    <link rel="stylesheet" href="css/WeatherOnRoute.css" />
     <script src="scripts/WOR_declarations.js"></script>
     <script src="scripts/WOR_workfunctions.js"></script>
     <script src="scripts/WOR_mapsetup.js"></script>
     <script src="scripts/WOR_WeatherServiceHandler.js"></script>
-    <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
-    <meta name="msapplication-tap-highlight" content="no" />
-    <!--<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">-->
-
-
 </head>
 <body>
 	<div id="map" class="map" style="z-index: 0;height:100%;width:100%;"></div>
-
-
 	<script>
 
+        /*************************
+         * MAP INIT
+        /************************/
 
-
-		//**************************************************************
-		//**************************************************************
-
-
-		//A lot of stuff happens in "WOR_mapsetup.js" - just ignore the route setup part, look at: "generateWORM"
-		// MAP INIT
-		//**************************************************************
-		//**************************************************************
 		var routeLayer = generateRouteLayer();
 		var routeDotsHandle = createRouteStartEndDots(); //start and end dots
 		var routeDotsHandle2 = createRouteDots(); //all dots along the line except start and end
 		var routeHandle = createRouteLegs(); //all legs along the line as features
-
-
-
-		var map = new ol.Map({
+        var interactions = ol.interaction.defaults({altShiftDragRotate:false, pinchRotate:false});
+        var map = new ol.Map({
+            interactions: interactions, //stop rotation
 			loadTilesWhileInteracting: true,
 			target: 'map',
 			controls: ol.control.defaults({
-				attributionOptions: /** @type {olx.control.AttributionOptions} */ ({
+				attributionOptions:({
 					collapsible: false
 				})
 			}).extend([]),
@@ -54,11 +42,10 @@
 				source: new ol.source.OSM()
 			}), routeLayer
 			],
-			view: new ol.View({
+			view: new ol.View({ //center view over route area
 				center: ol.proj.transform([12.663240423944345, 54.880610640482985], 'EPSG:4326', 'EPSG:3857'),
-				//center: ol.proj.transform([12.68383978917871, 55.3159902246746], 'EPSG:4326', 'EPSG:3857'),
 				zoom: mapZoomLevel,
-				minZoom: 2,
+				minZoom: 2
 			})
 		});
 
@@ -68,134 +55,141 @@
 		mapSource.addFeatures(routeDotsHandle);
 		mapSource.addFeatures(routeDotsHandle2);
 
-
-
-
-		//**************************************************************
-		//**************************************************************
-		function updateClickmarkerWORMFunction() { //test if weather fetch is completed, then create a new clickmarker
-			if (weatherFetchComplete) {
-				weatherFetchComplete = false; //reset
-
-				//easier to read
-				var winddirection = route.weatherdata.clickmarker.winddirection;
-				var windspeed = route.weatherdata.clickmarker.windspeed;
-				var currentdirection = route.weatherdata.clickmarker.currentdirection;
-				var currentspeed = route.weatherdata.clickmarker.currentspeed;
-				var wavedirection = route.weatherdata.clickmarker.wavedirection;
-				var waveheight = route.weatherdata.clickmarker.waveheight;
-				var markertext = ""; //doesnt need text
-
-				try {
-					mapSource.removeFeature(mapSource.getFeatureById("WORMLoadingIcon")); //remove loading icon
-				} catch (ExceptionNoFeature) { }
-
-				//adds a new clickmarker with updated info
-				mapSource.addFeatures(generateWORM('USERMARKER', 'clickmarker', route.mapfeatures.clickmarker.lon, route.mapfeatures.clickmarker.lat, 1, winddirection, windspeed, currentdirection, currentspeed, wavedirection, waveheight, markertext))
-				cleanWeatherMarkersOverlapping();
-
-			}
-		}
-		var updateClickmarkerWORMTimer = setInterval(function () { updateClickmarkerWORMFunction() }, 30);
-
-
-
+        /*************************
+         * INTERACTIONS
+        /************************/
 
 		function updateRouteWeatherDataFromService() { //gets weather data for route
-			for (var i = 0; i != route.scheduleElement.length; i++) {//loop through all waypoints
-				var latlon = [];
-				latlon.push(route.waypoints[i].lat);
-				latlon.push(route.waypoints[i].lon);
-				var routeeta = (route.scheduleElement[i].eta).substring(0, route.scheduleElement[i].eta.length-7)+"00Z"; //gives: YYYY-MM-DDTHH:MM:00Z - seconds do not matter
-            getWeatherDataAsync('routemarker', routeeta, null, latlon, null, null, i);
-            console.log("routeeta:",routeeta);
+			for (var i = 0; i != route.scheduleElement.length; i++) {//one waypoint at the time
+                getWeatherDataAsync(i);
 			}
+			console.log("ALL WEATHER DATA:",route.extensions.weatherdata);
+            for (var i = 0; i != route.scheduleElement.length; i++) {//generate WORM for each waypoint
+                updateRouteWORMFunction(i);
+                // updateWORMFunction("waypoint_"+i,route.extensions.weatherdata[i].forecasts[0]); //always first forecast
+            }
+            cleanWeatherMarkersOverlapping();
 		}
 
+        /*************************
+         * INTERACTIONS
+        /************************/
+        console.log("Make detection for mouse OUT on feature somehow, which removes all marker texts");
 
-		//**************************************************************
-		//**************************************************************
+        //MOUSE OVER
+        map.on('pointermove', function (evt){
+            if(evt.dragging) return; //ignore while dragging
+            // var pixel = map.getEventPixel(evt.originalEvent);
+            // var feature = map.forEachFeatureAtPixel(pixel,
+            //     function(feature){ //when mouseover a WORM or route leg, display ETA text of all WORMs
+            //         try {
+            //             var featStr = feature.getId() + "";
+            //             if(featStr.indexOf("routeweathermarker")>-1 || featStr.indexOf("routeleg")>-1){
+            //                 console.log("OVER MARKER or ROUTE!:",feature);
+            //                 for(var i=0;i!==route.waypoints.length;i++){
+            //                     updateRouteWORMTextFunction(i); //display text of all markers
+            //                 }
+            //             }else{ //on mouseout, remove all ETA texts
+            //                 console.log("mouseout");
+            //                 // try {
+            //                 for(var i=0;i!==route.waypoints.length;i++) {
+            //                     mapSource.removeFeature(mapSource.getFeatureById("routemarkertext" + (i)));
+            //                 }
+            //                 // } catch (ExceptionNoFeatureToRemove) { }
+            //             }
+            //         } catch (ExceptionNoFeatureDetected) {console.log("Not a WORM"); }
+            // });
+
+            var hit = this.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
+                return [true, feature];
+            });
+            if (hit && hit[0]) {
+                    var featStr = hit[1].getId() + "";
+                    // console.log("OVER a feature:",featStr);
+                    if(featStr.indexOf("routeweathermarker")>-1 || featStr.indexOf("routeleg")>-1) {
+                        // console.log("OVER MARKER or ROUTE!:", feature);
+                        for (var i = 0; i !== route.waypoints.length; i++) {
+                            updateRouteWORMTextFunction(i); //display text of all markers
+                        }
+                        console.log("TELL THE STATUS THAT THE MARKERS ARE VISIBLE");
+                    }else{
+                        console.log("feature:",hit[1].getId());
+                        mapSource.removeFeature(mapSource.getFeatureById(hit[1].getId()));
+                    }
+            } else {
+                console.log("OUT!");
+                    console.log("feature on out:",hit[1].getId());
+                for(var i=0;i!==route.waypoints.length;i++) {
+                    try{
+                        mapSource.removeFeature(mapSource.getFeatureById("routemarkertext" + (i)));
+                    } catch(noTextToRemove){}
+                }
+            }
+        });
+
+		//MOUSE CLICK
 		map.on('click', function (evt) {
-
-
-			//put back removed weathermarkers
-			for (var i = 0; i != route.waypoints.length ; i++) {
+			for (var i = 0; i !== route.scheduleElement.length ; i++) {//put back removed weathermarkers
 				if (!mapSource.getFeatureById("routeweathermarker_" + i + "_windmarker")) {
 					updateRouteWORMFunction(i);
 				}
 			}
-
 			var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
 			var lon = lonlat[0];
 			var lat = lonlat[1];
 			var latlon = [lat, lon]; //reversed
 
-
 			//CLICKMARKER
-			route.mapfeatures.clickmarker.lon = lon;
-			route.mapfeatures.clickmarker.lat = lat;
+			route.extensions.mapfeatures.clickmarker.lon = lon;
+			route.extensions.mapfeatures.clickmarker.lat = lat;
 			var time = new Date();
 			time.setTime(time.getTime());
 			time = rendertimeformat(time); //change to expected time format
 
-
 			if (control_clickmarkerenabled) {
-				mapSource.addFeatures(retLoadingIcon(lonlat)); //display loading icon
-				getWeatherDataAsync('clickmarker', time, null, latlon); //get clicked location weather right now.
+				// mapSource.addFeatures(retLoadingIcon(lonlat)); //display loading icon
+				// getWeatherDataAsync('clickmarker', time, null, latlon); //get clicked location weather right now.
+                //
+				// try {//removes the existing clickmarker
+				// 	mapSource.removeFeature(mapSource.getFeatureById("clickmarker_wavemarker"));
+				// 	mapSource.removeFeature(mapSource.getFeatureById("clickmarker_currentmarker"));
+				// 	mapSource.removeFeature(mapSource.getFeatureById("clickmarker_windmarker"));
+				// } catch (ExceptionNoFeature) { }
+                //
+				// //detect if user clicks on existing route weather marker and remove it
+				// var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+				// 	return feature;
+				// });
+                //
+				// //clicktest and remove
+				// try {
+				// 	mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + feature.getId().split("_")[1] + "_wavemarker"));
+				// 	mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + feature.getId().split("_")[1] + "_currentmarker"));
+				// 	mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + feature.getId().split("_")[1] + "_windmarker"));
+				// } catch (ExceptionNoFeature) { }
 
-				//removes the existing clickmarker
-				try {
-					mapSource.removeFeature(mapSource.getFeatureById("clickmarker_wavemarker"));
-					mapSource.removeFeature(mapSource.getFeatureById("clickmarker_currentmarker"));
-					mapSource.removeFeature(mapSource.getFeatureById("clickmarker_windmarker"));
-				} catch (ExceptionNoFeature) { }
-				//END CLICKMARKER
+			}
+            //END CLICKMARKER
 
-
-				//detect if user clicks on existing route weather marker and remove it
-				var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
-					return feature;
-				});
-
-				//clicktest and remove
-				try {
-					mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + feature.getId().split("_")[1] + "_wavemarker"));
-					mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + feature.getId().split("_")[1] + "_currentmarker"));
-					mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + feature.getId().split("_")[1] + "_windmarker"));
-				} catch (ExceptionNoFeature) { }
-
-			} //enabled clickmarker
-
-			cleanWeatherMarkersOverlapping();
-
-			console.log("Mouse lon:" + lon + " - " + "lat:" + lat, (feature) ? ("\nClicked on:"+feature.getId()):"");
+			cleanWeatherMarkersOverlapping(); //recycled
+			// console.log("Mouse lon:" + lon + " - " + "lat:" + lat, (feature) ? ("\nClicked on:"+feature.getId()):"");
 		});
-
-
-		 
-
 
 		map.on("moveend", function (e) { //zoom or move map
 			mapZoomLevel = parseInt(map.getView().getZoom()); //global variable
 			cleanWeatherMarkersOverlapping(); //WOR_workfunctions.js - adds/removes waypoint weathermarkers according to distance in nautical miles at different zoom levels
-		})
-
-
-
-		$(document).ready(function () {
-			map.once('postrender', function (event) {
-				mapRenderComplete = true;
-				calculateAndSaveDistanceBetweenRouteMarkers(); //calc and save distances between waypoints into route.scheduleelements
-				updateRouteWeatherDataFromService(); //gets weather data for each waypoint
-			});
 		});
 
-
+        document.onreadystatechange = function () {
+            if (document.readyState === "interactive") { //IE8 comp.
+                map.once('postrender', function (event) {
+                    mapRenderComplete = true;
+                    calculateAndSaveDistanceBetweenRouteMarkers(); //calc and save distances between waypoints into route.extensions - uses turf
+                    updateRouteWeatherDataFromService(); //gets weather data for each waypoint - simulated
+                });
+            }
+        }
 
 	</script>
-
-
-
-
 </body>
 </html>

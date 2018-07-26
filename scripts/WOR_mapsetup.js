@@ -7,7 +7,7 @@ RouteDotStartBorderStyle = function () { //route start end style - scales accord
 		zIndex: 2,
 		stroke: new ol.style.Stroke({
 			color: 'rgba(0,100,0,1)',
-			width: WOR.RouteDotRadius * 1.2
+			width: WOR.routeDotRadius * 1.2
 		})
 	})];
 };
@@ -16,7 +16,7 @@ RouteDotStartInnerStyle = function () { //route start end style - scales accordi
 		zIndex: 2,
 		stroke: new ol.style.Stroke({
 			color: 'rgba(0,200,0,1)',
-			width: WOR.RouteDotRadius
+			width: WOR.routeDotRadius
 		})
 	})];
 };
@@ -24,7 +24,7 @@ RouteDotEndStyle = function () { //route start end style - scales according to z
 	return [new ol.style.Style({
 		stroke: new ol.style.Stroke({
 			color: 'rgba(200,0,0,1)',
-			width: WOR.RouteDotRadius
+			width: WOR.routeDotRadius
 		})
 	})];
 };
@@ -55,7 +55,7 @@ var createRouteStartEndDots = function () {
 	featureStartDotInner.setStyle(RouteDotStartInnerStyle());
 	feature2.setStyle(RouteDotEndStyle());
 	return [featureStartDotBorder, featureStartDotInner, feature2];
-}
+};
 
 
 
@@ -72,14 +72,14 @@ RDAreastyle = function () { //route start end style - scales according to zoom l
 	return [new ol.style.Style({
 		stroke: new ol.style.Stroke({
 			color: 'rgba(200,0,0,0.2)',
-			width: WOR.RouteDotRadius
+			width: WOR.routeDotRadius
 		})
 	})];
 };
-var createRouteDots = function () {
+createRouteDots = function () {
 	var features = [];
 	if (route.waypoints.length > 2) {
-		for (var i = 1; i != route.waypoints.length - 1; i++) {
+		for (var i = 1; i !== route.waypoints.length - 1; i++) {
 			var feature1 = new ol.Feature({ // create the feature
 				geometry: new ol.geom.Circle([route.waypoints[i].lon, route.waypoints[i].lat]).transform('EPSG:4326', 'EPSG:3857'),
 				name: 'RouteDot',
@@ -95,19 +95,19 @@ var createRouteDots = function () {
 				lat: route.waypoints[i].lat
 			});
 
-			features.push(feature1)
-			features.push(feature2)
+			features.push(feature1);
+			features.push(feature2);
 		}
 	}
 	return features;
-}
+};
 
 
 //ROUTE LEGS
 var createRouteLegs = function () {
 	var features = [];
 
-	lineStyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
+	var lineStyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
 		return [new ol.style.Style({
 			stroke: new ol.style.Stroke({
 				color: 'rgba(200,0,0,0.7)',
@@ -116,7 +116,7 @@ var createRouteLegs = function () {
 		})];
 	};
 	if (route.waypoints.length > 2) {
-		for (var i = 0; i != route.waypoints.length - 1; i++) {
+		for (var i = 0; i !== route.waypoints.length - 1; i++) {
 			var coords = [];
 
 			if (i < route.waypoints.length) { //give angle with the feature so ship icon can be rotated to match
@@ -129,40 +129,92 @@ var createRouteLegs = function () {
 			coords.push([route.waypoints[i + 1].lon, route.waypoints[i + 1].lat]);
 			var feature1 = new ol.Feature({ // create the feature
 				geometry: new ol.geom.LineString(coords).transform('EPSG:4326', 'EPSG:3857'),
-				name: 'RouteLeg',
+				name: 'routeleg',
 				routeLegNumber: i,
-				legrotation: rotation,
+				legrotation: rotation
 
 			});
-			feature1.setId('RouteLeg' + i);
+			feature1.setId('routeleg' + i);
 			feature1.setStyle(lineStyle());
 
 			features.push(feature1)
 		}
 		return features;
 	}
-}
+};
 
-//alert("Make lines pop back as individual features. See under map, remarked line.");
 
 
 
 //Weather On Route Marker (WORM) generator
+
+var retWORMTextStyle = function (scale, markertext) {
+    var waypointtextoffset = 60;
+    if (!scale) scale = 1;
+    if (markertext === "nodata") markertext = "";
+    var useimage = "images/emptyimage.png";
+    var radOff = 0; //text offset in radians
+    var WORMTextStyle = new ol.style.Style({
+        zIndex: 49,
+        image: new ol.style.Icon({
+            opacity: 1,
+            rotation: 0,
+            anchor: [(0.5), (0.5)],
+            anchorXUnits: 'fraction',
+            anchorYUnits: 'fraction',
+            src: useimage,
+            scale: 1
+        }),
+        text: new ol.style.Text({
+            font: 'bold 12px helvetica,sans-serif',
+            text: markertext,
+            // offsetX: 0,
+            offsetY: waypointtextoffset * scale,
+            scale: (1 * scale),
+            fill: new ol.style.Fill({
+                color: '#000'
+            }),
+            stroke: new ol.style.Stroke({
+                color: '#fff',
+                width: 1
+            })
+        })
+    });
+    return WORMTextStyle;
+};
+
+//creates a weather marker
+var generateWORMText = function (identifier, type, lon, lat, scale, markertext) {
+    if (!lon || !lat) { lon = 0; lat = 0; }
+    //TODO: rename iconfeatureX to something that makes sense
+    // MARKERTEXT
+    var iconFeature = new ol.Feature({
+        geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+        name: 'WOR_textmarker',
+        type: type,
+        identifier: identifier,
+        src: 'images/emptyimage.png' //just anything
+    });
+    iconFeature.setStyle(retWORMTextStyle(scale, markertext)); //change stylíng
+    iconFeature.setId(type);
+    return [iconFeature];
+};
+
+
 var retWORMWaveStyle = function (scale, wavedir, waveheight, markertext) {
 	if (!scale) scale = 1;
-	if (!wavedir) wavedir = 180;
-	wavedir += 45; //offset for icon
-	var useimage = (waveheight == "") ? 'images/WOR_backdropcircle_nowave.png' : 'images/WOR_backdropcircle.png';
-	if (markertext == "nodata") useimage = "images/WOR_nodata.png";
+	wavedir += 45; //offset for wavepointer is pointing lowerright
+	var useimage = (waveheight === "") ? 'images/WOR_backdropcircle_nowave.png' : 'images/WOR_backdropcircle.png';
+	if (markertext === "nodata") useimage = "images/WOR_nodata.png";
 
 
-	if (!waveheight || waveheight==0) waveheight = "";
-	var radOff = 0.47; //text offset in radians for current and wave indicator
+	if (!waveheight || waveheight===0) waveheight = "";
+	var radOff = 3.47; //text offset in radians for current and wave indicator
 	var WORMWaveStyle = new ol.style.Style({
 		zIndex: 50,
 		image: new ol.style.Icon({
 			opacity: 0.75,
-			rotation: degToRad(wavedir), //wavepointer is pointing lowerright
+			rotation: degToRad(wavedir + 180),
 			anchor: [(0.5), (0.5)],
 			anchorXUnits: 'fraction',
 			anchorYUnits: 'fraction',
@@ -171,7 +223,7 @@ var retWORMWaveStyle = function (scale, wavedir, waveheight, markertext) {
 		}),
 		text: new ol.style.Text({
 			font: '12px helvetica,sans-serif',
-			text: ('' + waveheight),
+			text: ('' + returnRoundedStr(waveheight)),
 			offsetX: calcSinCosFromAngle('x', degToRad(wavedir) + radOff, (40 * scale)),
 			offsetY: calcSinCosFromAngle('y', degToRad(wavedir) + radOff, (40 * scale)),
 			scale: (1 * scale),
@@ -185,23 +237,25 @@ var retWORMWaveStyle = function (scale, wavedir, waveheight, markertext) {
 		})
 	});
 	return WORMWaveStyle;
-}
+};
+//TODO
+console.log("make a new feature for the WORM - a text that can be added and removed without removing the WORM");
 
 var retWORMCurrentStyle = function (scale, currdir, currstr, markertext) {
 	if (!scale) scale = 1;
-	if (!currdir) currdir = 180;
-	currdir += 45; //offset for icon
+	currdir += 45; //offset for currentpointer is pointing lowerright
 	(!currstr) ? currstr = "" : currstr * 1.9438444924574; // make "" if nothing, or meter/sec to knots.
+	currstr = returnRoundedStr(currstr);
 	var useimage = 'images/WOR_innercircle.png';
-	if (markertext == "nodata") useimage = "images/emptyimage.png";
+	if (markertext === "nodata") useimage = "images/emptyimage.png";
 
-	if (!currstr || currstr == 0) currstr = "";
-	var radOff = 0.25; //text offset in radians for current and wave indicator
+
+	var radOff = 3.25; //text offset in radians for current and wave indicator
 	var WORMCurrentStyle = new ol.style.Style({
 		zIndex: 51,
 		image: new ol.style.Icon({
-			opacity: (currstr!="")?1:0,
-			rotation: degToRad(currdir), //currentpointer is pointing lowerright
+			opacity: (currstr!=="")?1:0,
+			rotation: degToRad(currdir - 180), //currentpointer is pointing lowerright
 			anchor: [0.5, 0.5],
 			anchorXUnits: 'fraction',
 			anchorYUnits: 'fraction',
@@ -224,13 +278,12 @@ var retWORMCurrentStyle = function (scale, currdir, currstr, markertext) {
 		})
 	});
 	return WORMCurrentStyle;
-}
+};
 
 
 var retWORMWindStyle = function (scale, winddir, windstr, markertext, wavedir) { //windstr is m/s - wavedir is needed to make offset greater if pointing south so text doesnt overlap. 
 	if (!scale) scale = 1;
-	var waypointtextoffset = 46;
-	if (!winddir) winddir = 180; //default north
+	// var waypointtextoffset = 60;
 	(!windstr) ? windstr = 1 : windstr * 1.9438444924574; // make 1 knot if nothing, or meter/sec to knots.
 	var markerImageNamePath = "images/wind/";
 
@@ -286,40 +339,25 @@ var retWORMWindStyle = function (scale, winddir, windstr, markertext, wavedir) {
 	}
 
 	var useimage = markerImageNamePath;
-	if (markertext == "nodata") {
+	if (markertext === "nodata") {
 		useimage = "images/emptyimage.png";
 		markertext = "";
 	}
-
 
 	var WORMWindStyle = new ol.style.Style({
 		zIndex: 52,
 		image: new ol.style.Icon(({
 			opacity: 1,
-			rotation: degToRad(winddir), //windpointer is straight is pointing straight down
+			rotation: degToRad(winddir -180), //correct 180 degrees for icon
 			anchor: [(0.52), (0.25)],
 			anchorXUnits: 'fraction',
 			anchorYUnits: 'fraction',
 			src: useimage, //needs path and windstr to paint correct arrow
 			scale: (0.80 * scale)
-		})),
-		text: new ol.style.Text({
-			font: 'bold 12px helvetica,sans-serif',
-			text: "" + markertext,
-			offsetX: 0,
-			offsetY: waypointtextoffset * scale,
-			scale: (1 * scale),
-			fill: new ol.style.Fill({
-				color: '#000'
-			}),
-			stroke: new ol.style.Stroke({
-				color: '#fff',
-				width: 1
-			})
-		})
+		}))
 	});
 	return WORMWindStyle;
-}
+};
 
 
 
@@ -328,21 +366,35 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 	if (!lon || !lat) { lon = 0; lat = 0; }
 
 	//display errormarker if no data
-	if (winddir == 0 && windstr == 0 && currdir == 0 && currstr == 0 && wavedir == 0 && waveheight == 0 && markertext == 0) {
+	if (winddir === 0 && windstr === 0 && currdir === 0 && currstr === 0 && wavedir === 0 && waveheight === 0 && markertext === 0) {
 		markertext = "nodata"; //styling takes care of it from here
 	}
 
+    //TODO: cleanup windmarker for markertext items
 
-	//WAVEARROW
-	var iconFeature = new ol.Feature({ 
+    //TODO: rename iconfeatureX to something that makes sense
+
+    //MARKERTEXT
+    // var iconFeature0 = new ol.Feature({
+    //     geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
+    //     name: 'WOR_textmarker',
+    //     type: type,
+    //     identifier: identifier,
+    //     src: 'images/emptyimage.png' //just anything
+    // });
+    // iconFeature0.setStyle(retWORMTextStyle(scale, markertext)); //change stylíng
+    // iconFeature0.setId(type + '_textmarker');
+
+    //WAVEARROW
+	var iconFeature1 = new ol.Feature({
 		geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
 		name: 'WOR_wavemarker',
 		type: type,
 		identifier: identifier,
-		src: 'images/WOR_vessel_backdropcircle.png',
+		src: 'images/WOR_vessel_backdropcircle.png'
 	});
-	iconFeature.setStyle(retWORMWaveStyle(scale, wavedir, waveheight, markertext)); //change stylíng
-	iconFeature.setId(type + '_wavemarker');
+	iconFeature1.setStyle(retWORMWaveStyle(scale, wavedir, waveheight, markertext)); //change stylíng
+	iconFeature1.setId(type + '_wavemarker');
 
 	//CURRENTARROW
 	var iconFeature2 = new ol.Feature({
@@ -350,7 +402,7 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 		name: 'WOR_currentmarker',
 		type: type,
 		identifier: identifier,
-		src: 'images/WOR_innercircle.png',
+		src: 'images/WOR_innercircle.png'
 	});
 	iconFeature2.setStyle(retWORMCurrentStyle(scale, currdir, currstr, markertext));
 	iconFeature2.setId(type + '_currentmarker');
@@ -361,13 +413,13 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 		name: 'WOR_windmarker',
 		type: type,
 		identifier: identifier,
-		src: 'images/wind/mark005.png',
+		src: 'images/wind/mark005.png'
 	});
 	iconFeature3.setStyle(retWORMWindStyle(scale, winddir, windstr, markertext, wavedir));
 	iconFeature3.setId(type + '_windmarker');
 
-	return [iconFeature, iconFeature2, iconFeature3];
-}
+	return [iconFeature1, iconFeature2, iconFeature3];
+};
 
 
 
@@ -380,11 +432,11 @@ var retLoadingIconStyle = function () {
 			anchor: [(0.5), (0.5)],
 			anchorXUnits: 'fraction',
 			anchorYUnits: 'fraction',
-			src: 'images/loadingicon.png',
+			src: 'images/loadingicon.png'
 		}))
 	});
 	return WORMLoadinStyle;
-}
+};
 
 
 
@@ -392,13 +444,13 @@ var retLoadingIcon = function (lonlat) {
 	var iconFeature = new ol.Feature({
 		geometry: new ol.geom.Point(lonlat).transform('EPSG:4326', 'EPSG:3857'),
 		name: 'WOR_loadingicon',
-		src: 'images/loading.gif',
+		src: 'images/loading.gif'
 	});
 	iconFeature.setStyle(retLoadingIconStyle()); //generated style
 	iconFeature.setId("WORMLoadingIcon");
 	return [iconFeature];
 
-}
+};
 
 
 
@@ -409,7 +461,7 @@ var retLoadingIcon = function (lonlat) {
 var generateRouteLayer = function () {
 	var point = new ol.geom.Point([0, 0]).transform('EPSG:4326', 'EPSG:3857'); //transform to EPSG:3857
 	var feature = new ol.Feature({ // create the feature
-		geometry: point,
+		geometry: point
 	});
 	var pointStyle = new ol.style.Style({
 		stroke: new ol.style.Stroke({
@@ -426,7 +478,7 @@ var generateRouteLayer = function () {
 		name: 'routeLayer'
 	});
 	return routeLayer;
-}
+};
 
 
 
