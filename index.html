@@ -14,9 +14,19 @@
     <script src="scripts/WOR_workfunctions.js"></script>
     <script src="scripts/WOR_mapsetup.js"></script>
     <script src="scripts/WOR_WeatherServiceHandler.js"></script>
+    <script src="scripts/WOR_ControlInterface.js"></script>
 </head>
 <body>
 	<div id="map" class="map" style="z-index: 0;height:100%;width:100%;"></div>
+    <div class="wor-map-button-style" onclick="toggleWOREnabled()">
+        <div class="wor-map-button-text-container">
+        WOR
+        </div>
+    </div>
+    <div id="mapcontrolinterface" class="control-interface">
+        <div id="button_text_always_on_toggle"></div>
+        <!-- MENU BUTTONS HERE -->
+    </div>
 	<script>
 
         /*************************
@@ -24,6 +34,7 @@
         /************************/
 
 		var routeLayer = generateRouteLayer();
+		var weatherOnRouteDisabled = false;
 		var routeDotsHandle = createRouteStartEndDots(); //start and end dots
 		var routeDotsHandle2 = createRouteDots(); //all dots along the line except start and end
 		var routeHandle = createRouteLegs(); //all legs along the line as features
@@ -48,7 +59,7 @@
 				minZoom: 2
 			})
 		});
-
+        // map.addControl(controlInterface);
 		var mapSource = routeLayer.getSource();
 		//Add route to map
 		mapSource.addFeatures(routeHandle);
@@ -63,7 +74,7 @@
 			for (var i = 0; i != route.scheduleElement.length; i++) {//one waypoint at the time
                 getWeatherDataAsync(i);
 			}
-			console.log("ALL WEATHER DATA:",route.extensions.weatherdata);
+			// console.log("ALL WEATHER DATA:",route.extensions.weatherdata);
             for (var i = 0; i != route.scheduleElement.length; i++) {//generate WORM for each waypoint
                 updateRouteWORMFunction(i);
                 // updateWORMFunction("waypoint_"+i,route.extensions.weatherdata[i].forecasts[0]); //always first forecast
@@ -74,66 +85,39 @@
         /*************************
          * INTERACTIONS
         /************************/
-        console.log("Make detection for mouse OUT on feature somehow, which removes all marker texts");
+
+        function displayMarkerTexts(){
+            for (var i = 0; i !== route.waypoints.length; i++) {
+                updateRouteWORMTextFunction(i); //display text of all WORM
+            }
+            cleanWeatherMarkersOverlapping(); //recycled
+        }
+        function hideMarkerTexts() {
+            for(var i=0;i!==route.waypoints.length;i++) {
+                try{
+                    mapSource.removeFeature(mapSource.getFeatureById("routemarkertext_" + (i))); //removes WORM text
+                } catch(noTextToRemove){}
+            }
+        }
 
         //MOUSE OVER
         map.on('pointermove', function (evt){
             if(evt.dragging) return; //ignore while dragging
-            // var pixel = map.getEventPixel(evt.originalEvent);
-            // var feature = map.forEachFeatureAtPixel(pixel,
-            //     function(feature){ //when mouseover a WORM or route leg, display ETA text of all WORMs
-            //         try {
-            //             var featStr = feature.getId() + "";
-            //             if(featStr.indexOf("routeweathermarker")>-1 || featStr.indexOf("routeleg")>-1){
-            //                 console.log("OVER MARKER or ROUTE!:",feature);
-            //                 for(var i=0;i!==route.waypoints.length;i++){
-            //                     updateRouteWORMTextFunction(i); //display text of all markers
-            //                 }
-            //             }else{ //on mouseout, remove all ETA texts
-            //                 console.log("mouseout");
-            //                 // try {
-            //                 for(var i=0;i!==route.waypoints.length;i++) {
-            //                     mapSource.removeFeature(mapSource.getFeatureById("routemarkertext" + (i)));
-            //                 }
-            //                 // } catch (ExceptionNoFeatureToRemove) { }
-            //             }
-            //         } catch (ExceptionNoFeatureDetected) {console.log("Not a WORM"); }
-            // });
-
             var hit = this.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
-                return [true, feature];
+                return [true, (feature.getId()+"")];
             });
-            if (hit && hit[0]) {
-                    var featStr = hit[1].getId() + "";
-                    // console.log("OVER a feature:",featStr);
-                    if(featStr.indexOf("routeweathermarker")>-1 || featStr.indexOf("routeleg")>-1) {
-                        // console.log("OVER MARKER or ROUTE!:", feature);
-                        for (var i = 0; i !== route.waypoints.length; i++) {
-                            updateRouteWORMTextFunction(i); //display text of all markers
-                        }
-                        console.log("TELL THE STATUS THAT THE MARKERS ARE VISIBLE");
-                    }else{
-                        console.log("feature:",hit[1].getId());
-                        mapSource.removeFeature(mapSource.getFeatureById(hit[1].getId()));
+            if (hit && hit[0] === true) {
+                    if(hit[1].indexOf("routeweathermarker")>-1 || hit[1].indexOf("routeleg")>-1) {
+                        displayMarkerTexts();
                     }
+
             } else {
-                console.log("OUT!");
-                    console.log("feature on out:",hit[1].getId());
-                for(var i=0;i!==route.waypoints.length;i++) {
-                    try{
-                        mapSource.removeFeature(mapSource.getFeatureById("routemarkertext" + (i)));
-                    } catch(noTextToRemove){}
-                }
+                hideMarkerTexts();
             }
         });
 
 		//MOUSE CLICK
 		map.on('click', function (evt) {
-			for (var i = 0; i !== route.scheduleElement.length ; i++) {//put back removed weathermarkers
-				if (!mapSource.getFeatureById("routeweathermarker_" + i + "_windmarker")) {
-					updateRouteWORMFunction(i);
-				}
-			}
 			var lonlat = ol.proj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326');
 			var lon = lonlat[0];
 			var lat = lonlat[1];
@@ -171,13 +155,13 @@
 			}
             //END CLICKMARKER
 
-			cleanWeatherMarkersOverlapping(); //recycled
+            if(!weatherOnRouteDisabled) cleanWeatherMarkersOverlapping(); //recycled
 			// console.log("Mouse lon:" + lon + " - " + "lat:" + lat, (feature) ? ("\nClicked on:"+feature.getId()):"");
 		});
 
 		map.on("moveend", function (e) { //zoom or move map
 			mapZoomLevel = parseInt(map.getView().getZoom()); //global variable
-			cleanWeatherMarkersOverlapping(); //WOR_workfunctions.js - adds/removes waypoint weathermarkers according to distance in nautical miles at different zoom levels
+            if(!weatherOnRouteDisabled) cleanWeatherMarkersOverlapping(); //WOR_workfunctions.js - adds/removes waypoint weathermarkers according to distance in nautical miles at different zoom levels
 		});
 
         document.onreadystatechange = function () {
@@ -188,6 +172,19 @@
                     updateRouteWeatherDataFromService(); //gets weather data for each waypoint - simulated
                 });
             }
+        };
+
+        function toggleWOREnabled(){
+            weatherOnRouteDisabled = !weatherOnRouteDisabled;
+            if(!weatherOnRouteDisabled){
+                calculateAndSaveDistanceBetweenRouteMarkers(); //calc and save distances between waypoints into route.extensions - uses turf
+                updateRouteWeatherDataFromService(); //gets weather data for each waypoint - simulated
+                document.getElementById("mapcontrolinterface").style.opacity = "0.9";
+            }else{
+                removeAllWeatherMarkers();
+                document.getElementById("mapcontrolinterface").style.opacity = "0.3";
+            }
+            console.log("weatherOnRouteDisabled:",weatherOnRouteDisabled);
         }
 
 	</script>

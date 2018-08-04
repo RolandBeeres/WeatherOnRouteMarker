@@ -3,7 +3,7 @@ var WeatherServiceRequestURL = "";
 // var GPSLocationActual = [55.072917200215191, 13.711061468866212] //has latlon of current position. (Timer or listener constantly updating GPS is probably required)
 // var GPSRefreshInterval = 5000; //millsec between update vesselactual position
 // var GPSRefreshCounter = 0;
-var weatherRefreshInterval = (10 * 60 * 1000) //ten minutes
+var weatherRefreshInterval = (10 * 60 * 1000); //ten minutes
 var weatherRefreshCounter = 0;
 var weatherFetchComplete = false;
 // var CompassHeadingActual = 0.0; //heading of vesselactual
@@ -56,12 +56,12 @@ var route = {
 	],
     extensions: {
         weathermarkersettings: [
-            {waypointId:0, nextwaypointdistance: 0.0, zoomdisplay: 0},
-            {waypointId:1, nextwaypointdistance: 0.0, zoomdisplay: 0},
-            {waypointId:2, nextwaypointdistance: 0.0, zoomdisplay: 0},
-            {waypointId:3, nextwaypointdistance: 0.0, zoomdisplay: 0},
-            {waypointId:4, nextwaypointdistance: 0.0, zoomdisplay: 0},
-            {waypointId:5, nextwaypointdistance: 0.0, zoomdisplay: 0}
+            {waypointId:0, nextwaypointdistance: 0.0, zoomdisplay: 0, visible: true},
+            {waypointId:1, nextwaypointdistance: 0.0, zoomdisplay: 0, visible: true},
+            {waypointId:2, nextwaypointdistance: 0.0, zoomdisplay: 0, visible: true},
+            {waypointId:3, nextwaypointdistance: 0.0, zoomdisplay: 0, visible: true},
+            {waypointId:4, nextwaypointdistance: 0.0, zoomdisplay: 0, visible: true},
+            {waypointId:5, nextwaypointdistance: 0.0, zoomdisplay: 0, visible: true}
         ],
         weatherdata: [], //should be populated by async request
         clickmarkerdata: { // same as a single weatherdata entry, populated here as an example.

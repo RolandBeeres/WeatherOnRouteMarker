@@ -1,4 +1,4 @@
-﻿html, body, #basicMap {
+﻿html, body {
 	width: 100%;
 	height: 100%;
 	margin: 0;
@@ -9,137 +9,86 @@
 }
 
 
+/* OVERRIDES */
+.ol-viewport .ol-unselectable{
+    left:13px !important;
+}
+/* END OVERRIDES */
 
-.ol-WORBarContainer {
-	/*Weather On Route*/
-	
-	border-radius: 4px;
-	padding: 2px;
-	position: absolute;
-	width: 50%;
-	height: 10%;
-	top: 88%;
-	margin-left: auto;
-	margin-right: auto;
-	left: 25%;
-	min-width: 300px;
-	min-height: 40px;
-	/*@media only screen and (min-device-width : 320px) and (max-device-width : 480px) and (orientation:portrait) {
-				#content {
-					width: 100%;
-				}
-			}*/
+.wor-map-button-style {
+    opacity:.9;
+    color: white;
+    top: 100px;
+    left: 8px;
+    position: absolute;
+    border-radius: 50%;
+    width: 40px;
+    height: 34px;
+    background-color: #6e90af;
+    border: 2px #ffffff solid;
+    font-family: arial;
+    font-size: 11px;
+    font-weight: bold;
+    padding-top: 11px;
+    padding-left: 5px;
 }
-
-.ol-WORBarMenuContainer {
-background-color: rgba(255, 255, 255, 0.7);	border-radius: 4px;
-	padding: 2px;
-	position: absolute;
-	width: 80%;
-	height: 10%;
-	top: 88%;
-	margin-left: auto;
-	margin-right: auto;
-	left: 10%;
-	min-width: 300px;
-	min-height: 40px;
-	border:1px solid rgba(100,100,100,1);
+.wor-map-button-style:hover {
+	cursor: pointer;
+	background-color: rgba(0, 60, 136, 0.9);
 }
-
-.ol-WORBarRouteMainContainer {
-	position: absolute;
-	left: 0px;
-	width: 90%;
-	height: 100%;
-	top: 0px;
-	margin: 0;
-	/*background-color: rgba(255, 0, 0, 0.3);*/
-}
-
-.ol-WORBarRouteContainer {
-	position: absolute;
-	left: 0px;
-	width: 100%;
-	height: 100%;
-	top: 0px;
-	margin: 0;
-	background-color: rgba(20, 20, 20, 0.3);
-}
-
-.ol-WORBarRoute {
-	position: absolute;
-	left: 5%;
-	width: 90%;
-	height: 12px;
-	top: 10px;
-	margin: 0;
-	/*background-color: rgba(255, 0, 0, 0.3);*/
-}
-
-.ol-WORBarOptionsButton {
-	position: relative;
-	float: right;
-	margin-right:8px;
-	min-width: 10px;
-	max-width:8%;
-	min-height:20px;
-	max-height:90%;
-	top: 20%;
-}
-.ol-WORBarShipIconContainer {
-	position: absolute;
-	left: 0%;
-	top: -20px;
-	width:60px;
-	height:30px;
-	/*background-image: url(../images/vessel_sideview_left_freighter_PosMarker.png);
-	background-size: cover;
-	background-repeat: no-repeat;
-	background-position: center center;
-	background-size: contain;*/
-	margin: 0;
-	/*background-color: rgba(20, 20, 20, 0.3);*/
-}
-.ol-WORBarShipIconLeft {
-	background-image: url(../images/vessel_sideview_left_freighter_PosMarker.png);
-	background-size: cover;
-	background-repeat: no-repeat;
-	background-position: center center;
-	background-size: contain;
-}
-.ol-WORBarShipIconRight {
-	background-image: url(../images/vessel_sideview_right_freighter_PosMarker.png);
-	background-size: cover;
-	background-repeat: no-repeat;
-	background-position: center center;
-	background-size: contain;
-}
-.ol-WORBarShipIconCircle {
-	position: absolute;
-	left: -10px;
-	top: -20px;
-	width:80px;
-	height:80px;
-	margin: 0;
-	border:1px solid rgba(100,100,100,1);
-	background-color: rgba(20, 20, 20, 0.1);
+.wor-map-button-text-container{
+    width: 34px;
+    min-width: 34px;
+    text-align: center;
+    padding: 0;
+    top: 6px;
+    height: 14px;
+    position: relative;
 }
 
 
-/*ol-WORBarOptionsButton:after {
-			content:"&#9776;";
-		}*/
+.control-interface{
+    z-index: 1;
+    height: 67px;
+    width: 160px;
+    min-width: 160px;
+    position: absolute;
+    left: 55px;
+    top: 8px;
+    background-color: #6e90af;
+    border-radius: 4px;
+    border: 2px solid rgba(255, 255, 255, .95);
+    opacity: 0.95;
+}
+/*.ol-mycontrol {*/
+	/*background-color: rgba(255, 255, 255, 0.4);*/
+	/*border-radius: 4px;*/
+	/*padding: 2px;*/
+	/*position: absolute;*/
+	/*width:300px;*/
+	/*top: 5px;*/
+	/*left:40px;*/
+/*}*/
+/*.ol-WORBarOptionsButton {*/
+	/*position: relative;*/
+	/*float: right;*/
+	/*margin-right:8px;*/
+	/*min-width: 10px;*/
+	/*max-width:8%;*/
+	/*min-height:20px;*/
+	/*max-height:90%;*/
+	/*top: 20%;*/
+/*}*/
+
 .round {
 	-moz-border-radius: 50%;
 	-webkit-border-radius: 50%;
 	border-radius: 50%;
 }
-.roundedbar {
+
+.roundedcorners {
 	border-top-left-radius: 4px;
 	border-bottom-left-radius: 4px;
 	border-top-right-radius: 4px;
 	border-bottom-right-radius: 4px;
-	
-
-
 }
