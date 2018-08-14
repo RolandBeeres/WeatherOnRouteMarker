@@ -160,7 +160,6 @@ function removeAllWeatherMarkers(){ //removes all weathermarkers
 }
 
 function rendertimeformat(tm) {
-   // console.log("tm:",tm);
 	if (tm && tm !== "") return tm.toISOString().substring(0, tm.toISOString().length - 4) + "00Z";
 }
 
@@ -173,7 +172,56 @@ function retDayFromRTZ(tm) { //returns which day it is from a timestamp
 }
 
 
+Number.prototype.validateBetween = function (a, b) {
+    min = Math.min.apply(Math, [a, b]);
+    max = Math.max.apply(Math, [a, b]);
+    var minValid = this >= min;
+    var maxValid = this <= max;
+    return {"minValid": minValid, "maxValid": maxValid};
+};
 
+function validateNumber(inputString, min, max, decimals) { // maxnums is total allowed numbers, valtype is "int" ||"float" to test on, returned is always array [(true/false), (value as string)].
+    var errorMsg = "",
+        isValid = false, outputString = "", hasPeriod = false;
+    if(inputString) {
+        inputString = inputString.toString().trim(); // space only trim works because inputs have ng-trim="false" and triggers validate
+        if (decimals > 0) {
+            inputString = inputString.replace(/[^0-9.,]/g, '');
+            inputString = inputString.replace(/[,]/g, '.');
+        } else {
+            inputString = inputString.replace(/[^0-9]/g, ''); //no decimals allowed
+        }
+        hasPeriod = inputString.indexOf(".") > -1;
+        if (!decimals || decimals == "") decimals = 0;
+        inputString = String(inputString); //force to string
+        if (inputString == "." || inputString == "0.0") inputString = "0.";
+        if (inputString.length < 1) errorMsg = "Missing number to validate on in function 'validateNumber'.";
+        if (inputString.length > 0) {
+            var inputFloat = parseFloat(inputString); //float it
+            if (isNaN(inputFloat)) inputFloat = 0.0;
+            var retvalidation = inputFloat.validateBetween(min, max, true);
+            if (retvalidation.minValid && retvalidation.maxValid){
+                isValid = true;
+            // } else{
+            //     inputFloat = max;
+            }
+            outputString = inputString; //swap!
+            if (hasPeriod === true) {
+                var tmpStr2 = "";
+                var numStr = outputString.split('.');
+                var tmpStr = numStr[0];
+                try {
+                    tmpStr2 = numStr[1].substring(0, decimals);
+                } catch (noDecimals) {
+                }
+                outputString = tmpStr + "." + tmpStr2;
+            }
+        }
+    }else{
+        return {"valid": false, "val": 0};
+    }
+    return {"valid": isValid, "val": outputString}; //cant call it value because its a js constant
+}
 
 
 

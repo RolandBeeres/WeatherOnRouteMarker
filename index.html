@@ -18,14 +18,49 @@
 </head>
 <body>
 	<div id="map" class="map" style="z-index: 0;height:100%;width:100%;"></div>
-    <div class="wor-map-button-style" onclick="toggleWOREnabled()">
+    <div class="wor-map-button-style unselectable" onclick="toggleWOREnabled()">
         <div class="wor-map-button-text-container">
         WOR
         </div>
     </div>
-    <div id="mapcontrolinterface" class="control-interface">
-        <div id="button_text_always_on_toggle"></div>
-        <!-- MENU BUTTONS HERE -->
+    <div id="mapcontrolinterface" class="control-interface unselectable ">
+        <div id="mapcontrolinterfacecover" style="position:absolute;left:-20000px;top:0px;margin:0;width:100%;height:100%;background-color:#6e90af;"></div>
+
+        <!-- MARKER TEXT TOGGLE -->
+        <div id="button_text_always_on_toggle" onclick="buttonToggle('texttoggle');"  class="button-toggle" style="left:6px;top:6px;">
+            <div style="" class="textbox" title="Keeps WORM text visible at all times - toggles to mouseover.">
+                T
+            </div>
+        </div>
+
+        <!-- CLICKMARKER TOGGLE -->
+        <div id="button_clickmarker_toggle" onclick="buttonToggle('clickmarker');" class="button-toggle" style="left:6px;top:36px;">
+            <div class="textbox" style="left:0px" title="Enables WOR clickmarker - click anywhere on map to see actual weather information at that location.">
+                W
+            </div>
+        </div>
+
+        <!-- MAX WIND STRENGTH WARNING -->
+        <div class="input-container">
+            <div class="div-editor-descriptor-text">Wind:</div>
+            <div id="windMaxInput" class="div-editable input-div-tiny" contenteditable="true">30</div>
+            <div class="div-editor-unit-text">m/s</div>
+        </div>
+        <!-- MAX WAVE HEIGHT WARNING -->
+        <div style="top:24px;" class="input-container">
+            <div class="div-editor-descriptor-text">Wave:</div>
+            <div id="waveMaxInput" class="div-editable input-div-tiny" contenteditable="true">5</div>
+            <div class="div-editor-unit-text">m.</div>
+        </div>
+        <!-- MAX CURRENT STRENGTH WARNING -->
+        <div style="top:45px;" class="input-container">
+            <div class="div-editor-descriptor-text">Current:</div>
+            <div id="currentMaxInput" class="div-editable input-div-tiny" contenteditable="true">0.5</div>
+            <div class="div-editor-unit-text">kn.</div>
+        </div>
+
+
+        <!-- MENU BUTTONS HERE  pointer-events: none;-->
     </div>
 	<script>
 
@@ -93,10 +128,12 @@
             cleanWeatherMarkersOverlapping(); //recycled
         }
         function hideMarkerTexts() {
-            for(var i=0;i!==route.waypoints.length;i++) {
-                try{
-                    mapSource.removeFeature(mapSource.getFeatureById("routemarkertext_" + (i))); //removes WORM text
-                } catch(noTextToRemove){}
+            if(!controlinterface_texttoggle_enabled){
+                for(var i=0;i!==route.waypoints.length;i++) {
+                    try{
+                        mapSource.removeFeature(mapSource.getFeatureById("routemarkertext_" + (i))); //removes WORM text
+                    } catch(noTextToRemove){}
+                }
             }
         }
 
@@ -179,14 +216,62 @@
             if(!weatherOnRouteDisabled){
                 calculateAndSaveDistanceBetweenRouteMarkers(); //calc and save distances between waypoints into route.extensions - uses turf
                 updateRouteWeatherDataFromService(); //gets weather data for each waypoint - simulated
-                document.getElementById("mapcontrolinterface").style.opacity = "0.9";
+                controlinterfacehide(false);
             }else{
                 removeAllWeatherMarkers();
-                document.getElementById("mapcontrolinterface").style.opacity = "0.3";
+                controlinterfacehide(true);
             }
-            console.log("weatherOnRouteDisabled:",weatherOnRouteDisabled);
         }
 
-	</script>
+        function moveCursorToEnd(el) {
+            if (typeof el.selectionStart == "number") {
+                el.selectionStart = el.selectionEnd = el.value.length;
+            } else if (typeof el.createTextRange != "undefined") {
+                el.focus();
+                console.log("bob");
+                var range = el.createTextRange();
+                range.collapse(false);
+                range.select();
+            }
+        }
+
+
+        function setCaretPosition(el) {
+            var editableDiv = el;
+            var lastLine = editableDiv.innerHTML.replace(/.*?(<br>)/g, '');
+            var selection = window.getSelection();
+            selection.collapse(editableDiv.childNodes[editableDiv.childNodes.length - 1], lastLine.length);
+        }
+
+        //EVENT LISTENERS FOR INPUTS
+        document.getElementById('windMaxInput').addEventListener('input', function() {
+            executeChange(document.getElementById('windMaxInput'), 300);
+        });
+        document.getElementById('waveMaxInput').addEventListener('input', function() {
+            executeChange(document.getElementById('waveMaxInput'), 50);
+        });
+        document.getElementById('currentMaxInput').addEventListener('input', function() {
+            executeChange(document.getElementById('currentMaxInput'), 4);
+        });
+
+
+        function executeChange(el, maxVal){
+            var retVal = validateNumber(el.innerHTML,0,maxVal,2);
+            if(retVal.val > maxVal) retVal.val = maxVal; //make sure maxval is maintained
+            el.innerText = retVal.val;
+            if(retVal.val!==null && retVal.val!==0){
+                setTimeout(function() {
+                    setCaretPosition(el);
+                }, 1);
+                console.log("Update WORMs if they exceed danger values");
+            }else{
+                setTimeout(function() {
+                    el.focus(); //force focus
+                    document.execCommand('selectAll', false, null);
+                }, 1);
+            }
+        };
+
+    </script>
 </body>
 </html>

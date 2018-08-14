@@ -238,8 +238,6 @@ var retWORMWaveStyle = function (scale, wavedir, waveheight, markertext) {
 	});
 	return WORMWaveStyle;
 };
-//TODO
-console.log("make a new feature for the WORM - a text that can be added and removed without removing the WORM");
 
 var retWORMCurrentStyle = function (scale, currdir, currstr, markertext) {
 	if (!scale) scale = 1;
