@@ -54,6 +54,7 @@ function calculateAndSaveDistanceBetweenRouteMarkers() { //saves distance betwee
 
 
 function updateRouteWORMFunction(id) { //create route weather marker when data is available.
+	// console.log("id:",route.waypoints[id].lon)
 	var winddirection = route.extensions.weatherdata[id].forecasts[0].winddir.forecast;
 	var windspeed = route.extensions.weatherdata[id].forecasts[0].windspeed.forecast;
 	var currentdirection = route.extensions.weatherdata[id].forecasts[0].currentdir.forecast;
@@ -68,6 +69,7 @@ function updateRouteWORMFunction(id) { //create route weather marker when data i
 
 	//adds a new marker with updated info
 	mapSource.addFeatures(generateWORM('ROUTEWEATHERMARKER', 'routeweathermarker_' + id, route.waypoints[id].lon, route.waypoints[id].lat, control_scale, winddirection, windspeed, currentdirection, currentspeed, wavedirection, waveheight, markertext));
+    route.extensions.weathermarkersettings[id].visible = true;
 }
 
 function updateRouteWORMTextFunction(id) { //creates the text under a WORM
@@ -76,7 +78,7 @@ function updateRouteWORMTextFunction(id) { //creates the text under a WORM
         timehours = timehours.substring(0,timehours.length-3);
         var markertext = retDayFromRTZ(route.scheduleElement[id].eta) + "\n" + timehours + " UTC";
         if (!control_displaymarkertext) markertext = "";
-        mapSource.addFeatures(generateWORMText('ROUTEMARKERTEXT', 'routemarkertext_' + id, route.waypoints[id].lon, route.waypoints[id].lat, control_scale, markertext));
+        mapSource.addFeatures(generateWORMText('ROUTEMARKERTEXT', 'routemarkertext_' + id, route.waypoints[id].lon, route.waypoints[id].lat, control_scale, markertext + " " + id));
     }else{
         try{
             mapSource.removeFeature(mapSource.getFeatureById("routemarkertext_" + (id))); //removes WORM text
@@ -85,67 +87,178 @@ function updateRouteWORMTextFunction(id) { //creates the text under a WORM
 }
 
 
-
 //test route weathermarkers for overlapping on zoom, remove the lowest overlapping one in order from start to end
 function cleanWeatherMarkersOverlapping() {
-	function hideshowmarkerswithindistance(showhidedistance) {
-		var totalDistance = 0;
-		for (var i = 0; i !== route.extensions.weathermarkersettings.length - 1; i++) {//loop through all waypoints, remove any that are closer than (distance)
-			for (var y = i; y !== route.extensions.weathermarkersettings.length - 1; y++) {
-				totalDistance = parseFloat(route.extensions.weathermarkersettings[i].nextwaypointdistance) + parseFloat(route.extensions.weathermarkersettings[i + 1].nextwaypointdistance); //add up distances
-				if (showhidedistance > totalDistance) {
-					try { //remove the marker
-                        mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_wavemarker"));
-                        mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_currentmarker"));
-                        mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_windmarker"));
-                        mapSource.removeFeature(mapSource.getFeatureById("routemarkertext_" + (i)));
-					} catch (ExceptionNoFeature) { }
+	console.log("zoom:",mapZoomLevel);
+	var markersAreGenerated = false;
 
-                    route.extensions.weathermarkersettings[i].visible = false; //set status of this marker
-					route.extensions.weathermarkersettings[i].zoomdisplay = mapZoomLevel; //save at which zoomlevel to show this marker again
-				}else{
-                    route.extensions.weathermarkersettings[i].visible = true; //set status of this marker
-                }
-			}
-			//add markers and text that are within acceptable distance again on zoom change
-			if (route.extensions.weathermarkersettings[i].zoomdisplay > 0 && mapZoomLevel > (route.extensions.weathermarkersettings[i].zoomdisplay)) {
-                route.extensions.weathermarkersettings[i].visible = true; //set status of this marker
-				updateRouteWORMFunction(i);
-                updateRouteWORMTextFunction(i);
-				route.extensions.weathermarkersettings[i].zoomdisplay = 0; //reset marker zoom behaviour
-			}else{
-            }
-		}
-	}
+    removeAllWeatherMarkers();
+
+
+    try{ //First waypoint is always visible
+        updateRouteWORMFunction(0);
+        route.extensions.weathermarkersettings[0].visible = true;
+        updateRouteWORMTextFunction(0); //only created if marker is visible
+        markersAreGenerated = true;
+    }catch(mapNotLoadedErr){}
+
+    // function executeHideMarker(number){ //executes the hiding of marker
+    //     try { //remove the next marker ahead
+    //         mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (number) + "_wavemarker"));
+    //         mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (number) + "_currentmarker"));
+    //         mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (number) + "_windmarker"));
+    //         mapSource.removeFeature(mapSource.getFeatureById("routemarkertext_" + (number)));
+    //     } catch (ExceptionNoFeature) { }
+    //     route.extensions.weathermarkersettings[number].visible = false; //set status of this marker
+    // }
+
+
+
+
+        // var nextMarkerDistance = 0;
+        // var skippedMarkersStr = "";
+        // for (var i = 0; i !== route.extensions.weathermarkersettings.length - 1; i++) {//loop through all waypoints
+        //     var markersToHide="";
+        //     var markersToShow="";
+        //     if(route.extensions.weathermarkersettings[i].visible){
+        //         // console.log("currentmarker:",i);
+        //         var tmpDist = 0;
+        //
+        //         for(var y=i+1;y!=route.extensions.weathermarkersettings.length-1;y++){
+        //             var thiswaypoint = [route.waypoints[i].lon, route.waypoints[i].lat],
+        //                 nextwaypoint = [route.waypoints[y].lon, route.waypoints[y].lat];
+        //
+        //             tmpDist = tmpDist + getDistanceFromCoords(thiswaypoint,nextwaypoint);
+        //         	if(tmpDist < showhidedistance){
+        //                 // console.log("tmpDist:",tmpDist, "<", showhidedistance, " - hiding marker", y);
+        //                 markersToHide = markersToHide + (y+",");
+        //         		executeHideMarker(y);
+        //             }else{
+        //                 markersToShow = markersToShow + (y+",");
+        //                 // console.log("tmpDist:",tmpDist, "<", showhidedistance, " - leaving marker", y);
+        //
+        //             }
+        //
+        //         }
+        //         console.log("tmpDist:",tmpDist, "<", showhidedistance, " - leaving marker", y);
+			// }else{
+        //         skippedMarkersStr = skippedMarkersStr + (i+",");
+			// }
+        // }
+
+
+
+
+
+        // if(markersToHide.length>0) console.log("markersToHide:",markersToHide);
+        // if(markersToShow.length>0) console.log("markersToShow:",markersToShow);
+		// for (var i = 0; i !== route.extensions.weathermarkersettings.length - 1; i++) {//loop through all waypoints, remove any that are closer than (distance)
+		// 	for (var y = i; y !== route.extensions.weathermarkersettings.length - 1; y++) {
+		// 		totalDistance = route.extensions.weathermarkersettings[i].nextwaypointdistance + route.extensions.weathermarkersettings[i + 1].nextwaypointdistance; //add up distances
+         //        // console.log("marker:",i, "visible:",route.extensions.weathermarkersettings[i].visible)
+		// 		if (showhidedistance > totalDistance) {
+         //            // console.log("marker:",y, " has been removed (",showhidedistance,"?>",totalDistance,"!)" );
+		// 			try { //remove the marker
+         //                mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_wavemarker"));
+         //                mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_currentmarker"));
+         //                mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (i) + "_windmarker"));
+         //                mapSource.removeFeature(mapSource.getFeatureById("routemarkertext_" + (i)));
+		// 			} catch (ExceptionNoFeature) { }
+        //
+         //            route.extensions.weathermarkersettings[i].visible = false; //set status of this marker
+		// 			route.extensions.weathermarkersettings[i].zoomdisplay = mapZoomLevel; //save at which zoomlevel to show this marker again
+		// 		}else{
+         //            route.extensions.weathermarkersettings[i].visible = true; //set status of this marker
+         //        }
+		// 	}
+		// 	//add markers and text that are within acceptable distance again on zoom change
+		// 	if (route.extensions.weathermarkersettings[i].zoomdisplay > 0 && mapZoomLevel > (route.extensions.weathermarkersettings[i].zoomdisplay)) {
+         //        route.extensions.weathermarkersettings[i].visible = true; //set status of this marker
+		// 		updateRouteWORMFunction(i);
+         //        updateRouteWORMTextFunction(i);
+		// 		route.extensions.weathermarkersettings[i].zoomdisplay = 0; //reset marker zoom behaviour
+		// 	}else{
+         //    }
+		// }
 	var showhidedistance = 0; //zoom level controls allowed distance between markers - based on size of WORM by scale
-	switch (mapZoomLevel) {
 
-		case 11:
-			showhidedistance = 0.9;
-			break;
-		case 10:
-			showhidedistance = 1.8;
-			break;
-		case 9:
-			showhidedistance = 3.5;
-			break;
-		case 8:
-			showhidedistance = 6;
-			break;
-		case 7:
-			showhidedistance = 11;
-			break;
-		case 6:
-			showhidedistance = 22;
-			break;
-		case 5:
-			showhidedistance = 33;
-			break;
-		case 4:
-			showhidedistance = 66;
-			break;
-	}
-	hideshowmarkerswithindistance(showhidedistance);
+    function retShowhideDistance() {
+        switch (mapZoomLevel) {
+
+            case 15:
+                showhidedistance = 0.05;
+                break;
+            case 14:
+                showhidedistance = 0.6;
+                break;
+            case 13:
+                showhidedistance = 0.9;
+                break;
+            case 12:
+                showhidedistance = 1.5;
+                break;
+            case 11:
+                showhidedistance = 3;
+                break;
+            case 10:
+                showhidedistance = 10;
+                break;
+            case 9:
+                showhidedistance = 5;
+                break;
+            case 8:
+                showhidedistance = 22;
+                break;
+            case 7:
+                showhidedistance = 40;
+                break;
+            case 6:
+                showhidedistance = 90;
+                break;
+            case 5:
+                showhidedistance = 200;
+                break;
+            case 4:
+                showhidedistance = 600;
+                break;
+            case 3:
+                showhidedistance = 1500;
+                break;
+            case 2:
+                showhidedistance = 2500;
+                break;
+        }
+        return showhidedistance;
+    }
+    function generateMarkerWithoutOverlapping(showhidedistance, markernumber) {
+
+        var thiswaypointcoords = [route.waypoints[markernumber].lon, route.waypoints[markernumber].lat];
+
+        var tmpDist = 0;
+        // for(var y=markernumber+1;y!=10;y++) {
+        for(var y=markernumber+1;y!=route.extensions.weathermarkersettings.length-1;y++) {
+        //
+            var nextwaypointcoords = [route.waypoints[y].lon, route.waypoints[y].lat];
+
+            tmpDist = tmpDist + getDistanceFromCoords(thiswaypointcoords, nextwaypointcoords);
+
+            if (tmpDist > showhidedistance) {
+                console.log("tmpDist:",tmpDist, "<", showhidedistance, " - displaying marker", i);
+                updateRouteWORMFunction(y); //generate WORM for that waypoint
+                updateRouteWORMTextFunction(y);
+                break;
+            }
+
+        }
+
+
+    }
+
+    if(markersAreGenerated===true){
+        for (var i = 0; i !== route.scheduleElement.length; i++) {//generate WORM for each waypoint
+            if(route.extensions.weathermarkersettings[i].visible === true) generateMarkerWithoutOverlapping(retShowhideDistance(mapZoomLevel), i);
+        }
+    }
 }
 
 function removeAllWeatherMarkers(){ //removes all weathermarkers
@@ -156,6 +269,7 @@ function removeAllWeatherMarkers(){ //removes all weathermarkers
 			mapSource.removeFeature(mapSource.getFeatureById("routeweathermarker_" + (y) + "_windmarker"));
 			mapSource.removeFeature(mapSource.getFeatureById("routemarkertext_" + (y)));
 		} catch (ExceptionNoFeature) { }
+        route.extensions.weathermarkersettings[y].visible = false;
 	}
 }
 

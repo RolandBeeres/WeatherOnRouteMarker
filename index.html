@@ -1,7 +1,7 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-    <title>BW - WORM - prototype</title>
+    <title>Weather On Route</title>
     <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="msapplication-tap-highlight" content="no" />
     <!-- plugins -->
@@ -18,7 +18,7 @@
 </head>
 <body>
 	<div id="map" class="map" style="z-index: 0;height:100%;width:100%;"></div>
-    <div class="wor-map-button-style unselectable" onclick="toggleWOREnabled()">
+    <div class="wor-map-button-style unselectable" onclick="toggleWOREnabled()" title="Toggle Weather On Route Markers">
         <div class="wor-map-button-text-container">
         WOR
         </div>
@@ -26,36 +26,44 @@
     <div id="mapcontrolinterface" class="control-interface unselectable ">
         <div id="mapcontrolinterfacecover" style="position:absolute;left:-20000px;top:0px;margin:0;width:100%;height:100%;background-color:#6e90af;"></div>
 
+        <div class="wor-map-information-container unselectable" title="Toggle Weather On Route Markers">
+            <div class="wor-map-information-text">
+                Weather On Route
+            </div>
+        </div>
+        <hr style="position:absolute;top:15px;width:84%;left:7%;height:1px;color:#eeeeee;background-color:#eeeeee;border:none;">
+
+
         <!-- MARKER TEXT TOGGLE -->
-        <div id="button_text_always_on_toggle" onclick="buttonToggle('texttoggle');"  class="button-toggle" style="left:6px;top:6px;">
+        <div id="button_text_always_on_toggle" onclick="buttonToggle('texttoggle');"  class="button-toggle" style="left:6px;top:28px;">
             <div style="" class="textbox" title="Keeps WORM text visible at all times - toggles to mouseover.">
                 T
             </div>
         </div>
 
         <!-- CLICKMARKER TOGGLE -->
-        <div id="button_clickmarker_toggle" onclick="buttonToggle('clickmarker');" class="button-toggle" style="left:6px;top:36px;">
+        <div id="button_clickmarker_toggle" onclick="buttonToggle('clickmarker');" class="button-toggle" style="left:6px;top:58px;">
             <div class="textbox" style="left:0px" title="Enables WOR clickmarker - click anywhere on map to see actual weather information at that location.">
                 W
             </div>
         </div>
 
         <!-- MAX WIND STRENGTH WARNING -->
-        <div class="input-container">
+        <div style="top:25px;" class="input-container">
             <div class="div-editor-descriptor-text">Wind:</div>
-            <div id="windMaxInput" class="div-editable input-div-tiny" contenteditable="true">30</div>
+            <div id="windMaxInput" class="div-editable input-div-tiny" contenteditable="true">0</div>
             <div class="div-editor-unit-text">m/s</div>
         </div>
         <!-- MAX WAVE HEIGHT WARNING -->
-        <div style="top:24px;" class="input-container">
+        <div style="top:45px;" class="input-container">
             <div class="div-editor-descriptor-text">Wave:</div>
-            <div id="waveMaxInput" class="div-editable input-div-tiny" contenteditable="true">5</div>
+            <div id="waveMaxInput" class="div-editable input-div-tiny" contenteditable="true">0</div>
             <div class="div-editor-unit-text">m.</div>
         </div>
         <!-- MAX CURRENT STRENGTH WARNING -->
-        <div style="top:45px;" class="input-container">
+        <div style="top:66px;" class="input-container">
             <div class="div-editor-descriptor-text">Current:</div>
-            <div id="currentMaxInput" class="div-editable input-div-tiny" contenteditable="true">0.5</div>
+            <div id="currentMaxInput" class="div-editable input-div-tiny" contenteditable="true">0</div>
             <div class="div-editor-unit-text">kn.</div>
         </div>
 
@@ -65,10 +73,18 @@
 	<script>
 
         /*************************
-         * MAP INIT
+         * INIT
         /************************/
+        for (var i = 0; i !== route.scheduleElement.length; i++) {//one waypoint at the time
+            getWeatherDataAsync(i);
+        }
 
-		var routeLayer = generateRouteLayer();
+
+        /*************************
+         * MAP INIT
+         /************************/
+
+        var routeLayer = generateRouteLayer();
 		var weatherOnRouteDisabled = false;
 		var routeDotsHandle = createRouteStartEndDots(); //start and end dots
 		var routeDotsHandle2 = createRouteDots(); //all dots along the line except start and end
@@ -94,7 +110,6 @@
 				minZoom: 2
 			})
 		});
-        // map.addControl(controlInterface);
 		var mapSource = routeLayer.getSource();
 		//Add route to map
 		mapSource.addFeatures(routeHandle);
@@ -102,30 +117,27 @@
 		mapSource.addFeatures(routeDotsHandle2);
 
         /*************************
-         * INTERACTIONS
+         * POST
         /************************/
-
-		function updateRouteWeatherDataFromService() { //gets weather data for route
-			for (var i = 0; i != route.scheduleElement.length; i++) {//one waypoint at the time
-                getWeatherDataAsync(i);
-			}
-			// console.log("ALL WEATHER DATA:",route.extensions.weatherdata);
-            for (var i = 0; i != route.scheduleElement.length; i++) {//generate WORM for each waypoint
+        function updateRouteWeatherDataFromService() { //gets weather data for route
+            for (var i = 0; i !== route.scheduleElement.length; i++) {//generate WORM for each waypoint
                 updateRouteWORMFunction(i);
-                // updateWORMFunction("waypoint_"+i,route.extensions.weatherdata[i].forecasts[0]); //always first forecast
             }
             cleanWeatherMarkersOverlapping();
-		}
+        }
+
+        map.once('postrender', function(event) {
+            updateRouteWeatherDataFromService();
+        });
 
         /*************************
          * INTERACTIONS
         /************************/
 
-        function displayMarkerTexts(){
+        function displayMarkerTexts(){//display text of all WORM
             for (var i = 0; i !== route.waypoints.length; i++) {
-                updateRouteWORMTextFunction(i); //display text of all WORM
+                if(mapZoomLevel > 6) updateRouteWORMTextFunction(i); //only if zoomed in enough
             }
-            cleanWeatherMarkersOverlapping(); //recycled
         }
         function hideMarkerTexts() {
             if(!controlinterface_texttoggle_enabled){
@@ -144,10 +156,12 @@
                 return [true, (feature.getId()+"")];
             });
             if (hit && hit[0] === true) {
+                if(!weatherOnRouteDisabled){ //only mouseover if WOR is enabled
                     if(hit[1].indexOf("routeweathermarker")>-1 || hit[1].indexOf("routeleg")>-1) {
                         displayMarkerTexts();
                     }
 
+                }
             } else {
                 hideMarkerTexts();
             }
@@ -223,17 +237,17 @@
             }
         }
 
-        function moveCursorToEnd(el) {
-            if (typeof el.selectionStart == "number") {
-                el.selectionStart = el.selectionEnd = el.value.length;
-            } else if (typeof el.createTextRange != "undefined") {
-                el.focus();
-                console.log("bob");
-                var range = el.createTextRange();
-                range.collapse(false);
-                range.select();
-            }
-        }
+        // function moveCursorToEnd(el) {
+        //     if (typeof el.selectionStart == "number") {
+        //         el.selectionStart = el.selectionEnd = el.value.length;
+        //     } else if (typeof el.createTextRange != "undefined") {
+        //         el.focus();
+        //         console.log("bob");
+        //         var range = el.createTextRange();
+        //         range.collapse(false);
+        //         range.select();
+        //     }
+        // }
 
 
         function setCaretPosition(el) {
@@ -245,32 +259,44 @@
 
         //EVENT LISTENERS FOR INPUTS
         document.getElementById('windMaxInput').addEventListener('input', function() {
-            executeChange(document.getElementById('windMaxInput'), 300);
+            route.extensions.weathermarkerwarninglevels.wind = executeWarningLevelChange(document.getElementById('windMaxInput'), 300); // 300m/s is absolute max
+            removeAllWeatherMarkers();
+            updateRouteWeatherDataFromService();
         });
         document.getElementById('waveMaxInput').addEventListener('input', function() {
-            executeChange(document.getElementById('waveMaxInput'), 50);
+            route.extensions.weathermarkerwarninglevels.wave = executeWarningLevelChange(document.getElementById('waveMaxInput'), 50); // 50m waves are crazy enough
+            removeAllWeatherMarkers();
+            updateRouteWeatherDataFromService();
         });
         document.getElementById('currentMaxInput').addEventListener('input', function() {
-            executeChange(document.getElementById('currentMaxInput'), 4);
+            route.extensions.weathermarkerwarninglevels.current = executeWarningLevelChange(document.getElementById('currentMaxInput'), 4); // 4knots current is the strongest ever measured
+            removeAllWeatherMarkers();
+            updateRouteWeatherDataFromService();
         });
 
 
-        function executeChange(el, maxVal){
+        function executeWarningLevelChange(el, maxVal){
             var retVal = validateNumber(el.innerHTML,0,maxVal,2);
-            if(retVal.val > maxVal) retVal.val = maxVal; //make sure maxval is maintained
+            if(retVal.val > maxVal) retVal.val = maxVal; //make sure maxVal is maintained
             el.innerText = retVal.val;
             if(retVal.val!==null && retVal.val!==0){
                 setTimeout(function() {
                     setCaretPosition(el);
                 }, 1);
-                console.log("Update WORMs if they exceed danger values");
             }else{
                 setTimeout(function() {
                     el.focus(); //force focus
                     document.execCommand('selectAll', false, null);
                 }, 1);
             }
+            return retVal.val;
         };
+
+
+        //after declaration - update frontend with defaults
+        document.getElementById("windMaxInput").innerHTML = route.extensions.weathermarkerwarninglevels.wind;
+        document.getElementById("waveMaxInput").innerHTML = route.extensions.weathermarkerwarninglevels.wave;
+        document.getElementById("currentMaxInput").innerHTML = route.extensions.weathermarkerwarninglevels.current;
 
     </script>
 </body>

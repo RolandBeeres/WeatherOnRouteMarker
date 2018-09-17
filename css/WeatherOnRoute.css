@@ -82,7 +82,7 @@
 
 .control-interface{
     z-index: 1;
-    height: 67px;
+    height: 90px;
     width: 160px;
     min-width: 160px;
     position: absolute;
@@ -97,7 +97,6 @@
 .input-container{
     color: #ffffff;
     position: absolute;
-    top: 3px;
     align-items: right;
     right: 0px;
     width: 100px;
@@ -129,6 +128,20 @@
     text-align: left;
     min-width: 12px;
     width: 12px;
+}
+
+.wor-map-information-container{
+    position: absolute;
+    width:100%;
+    top: 2px;
+    height:20px;
+}
+.wor-map-information-text{
+    text-align: center;
+    padding-top: 3px;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: bold;
 }
 
 .round {

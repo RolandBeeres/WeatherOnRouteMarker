@@ -87,6 +87,8 @@ createRouteDots = function () {
 				lon: route.waypoints[i].lon,
 				lat: route.waypoints[i].lat
 			});
+            feature1.setStyle(RDAreastyle());
+
 			var feature2 = new ol.Feature({ // create the feature
 				geometry: new ol.geom.Circle([route.waypoints[i].lon, route.waypoints[i].lat]).transform('EPSG:4326', 'EPSG:3857'),
 				name: 'RouteDotArea',
@@ -107,10 +109,10 @@ createRouteDots = function () {
 var createRouteLegs = function () {
 	var features = [];
 
-	var lineStyle = function () { //route start end style - scales according to zoom level in USER INTERACTION section
+	var lineStyle = function (linecolor) { //route start end style - scales according to zoom level in USER INTERACTION section
 		return [new ol.style.Style({
 			stroke: new ol.style.Stroke({
-				color: 'rgba(200,0,0,0.7)',
+				color: linecolor,
 				width: 5
 			})
 		})];
@@ -119,7 +121,7 @@ var createRouteLegs = function () {
 		for (var i = 0; i !== route.waypoints.length - 1; i++) {
 			var coords = [];
 
-			if (i < route.waypoints.length) { //give angle with the feature so ship icon can be rotated to match
+			if (i < route.waypoints.length) { //give angle with the feature
 				var start = [route.waypoints[i].lon, route.waypoints[i].lat];
 				var end = [route.waypoints[i + 1].lon, route.waypoints[i + 1].lat];
 				var rotation = turf.bearing(start, end);
@@ -135,7 +137,21 @@ var createRouteLegs = function () {
 
 			});
 			feature1.setId('routeleg' + i);
-			feature1.setStyle(lineStyle());
+
+			var setWarning = false;
+			//make routeleg red or green pending on warning
+            var legcolor = 'rgba(0,120,0,0.7)'; //default green
+            // legcolor = 'rgba(200,0,0,0.7)'; //red
+			console.log(route.extensions.weatherdata[0].forecasts[0]);
+			try{
+                if (route.extensions.weatherdata[i].forecasts[0].waveheight.forecast > route.extensions.weathermarkerwarninglevels.wave) setWarning = true;
+                if (route.extensions.weatherdata[i].forecasts[0].windspeed.forecast > route.extensions.weathermarkerwarninglevels.wind) setWarning = true;
+                if (route.extensions.weatherdata[i].forecasts[0].currentspeed.forecast > route.extensions.weathermarkerwarninglevels.current) setWarning = true;
+			}catch(mapNotLoadedError){}
+            // console.log("setWarning:",setWarning, route.extensions.weatherdata[i].forecasts[0].waveheight.forecast, route.extensions.weathermarkerwarninglevels.wave);
+
+            if(setWarning) legcolor = 'rgba(200,0,0,0.7)';
+			feature1.setStyle(lineStyle(legcolor));
 
 			features.push(feature1)
 		}
@@ -186,7 +202,6 @@ var retWORMTextStyle = function (scale, markertext) {
 //creates a weather marker
 var generateWORMText = function (identifier, type, lon, lat, scale, markertext) {
     if (!lon || !lat) { lon = 0; lat = 0; }
-    //TODO: rename iconfeatureX to something that makes sense
     // MARKERTEXT
     var iconFeature = new ol.Feature({
         geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
@@ -202,12 +217,15 @@ var generateWORMText = function (identifier, type, lon, lat, scale, markertext) 
 
 
 var retWORMWaveStyle = function (scale, wavedir, waveheight, markertext) {
-	if (!scale) scale = 1;
+    if (!scale) scale = 1;
 	wavedir += 45; //offset for wavepointer is pointing lowerright
 	var useimage = (waveheight === "") ? 'images/WOR_backdropcircle_nowave.png' : 'images/WOR_backdropcircle.png';
-	if (markertext === "nodata") useimage = "images/WOR_nodata.png";
-
-
+	if(route.extensions.weathermarkerwarninglevels.wave > 0){ //warning status for max waveheight exceeded - 0 is ignored
+        if(waveheight > route.extensions.weathermarkerwarninglevels.wave){
+            useimage = 'images/WOR_backdropcircle_wavewarning.png';
+		}
+	}
+	if (markertext === "nodata") useimage = "images/WOR_nodata.png"; //fallback
 	if (!waveheight || waveheight===0) waveheight = "";
 	var radOff = 3.47; //text offset in radians for current and wave indicator
 	var WORMWaveStyle = new ol.style.Style({
@@ -245,9 +263,12 @@ var retWORMCurrentStyle = function (scale, currdir, currstr, markertext) {
 	(!currstr) ? currstr = "" : currstr * 1.9438444924574; // make "" if nothing, or meter/sec to knots.
 	currstr = returnRoundedStr(currstr);
 	var useimage = 'images/WOR_innercircle.png';
+    if(route.extensions.weathermarkerwarninglevels.current > 0){ //warning status for max current exceeded - 0 is ignored
+        if(currstr > route.extensions.weathermarkerwarninglevels.current){
+            useimage = 'images/WOR_innercircle_currentwarning.png';
+        }
+    }
 	if (markertext === "nodata") useimage = "images/emptyimage.png";
-
-
 	var radOff = 3.25; //text offset in radians for current and wave indicator
 	var WORMCurrentStyle = new ol.style.Style({
 		zIndex: 51,
@@ -285,50 +306,56 @@ var retWORMWindStyle = function (scale, winddir, windstr, markertext, wavedir) {
 	(!windstr) ? windstr = 1 : windstr * 1.9438444924574; // make 1 knot if nothing, or meter/sec to knots.
 	var markerImageNamePath = "images/wind/";
 
+	var warnImg = "";
+    if(route.extensions.weathermarkerwarninglevels.wind > 0){ //warning status for max current exceeded - 0 is ignored
+        if(windstr > route.extensions.weathermarkerwarninglevels.wind){
+            warnImg = "red";
+        }
+    }
 
-	//Determine wind marker image to display
+    //Determine wind marker image to display
 	if (windstr < 1.9){
-		markerImageNamePath += 'mark000.png';
+		markerImageNamePath += 'mark000'+warnImg+'.png';
 	} else if (windstr >= 2 && windstr < 7.5) {
-		markerImageNamePath += 'mark005.png';
+		markerImageNamePath += 'mark005'+warnImg+'.png';
 	} else if (windstr >= 7.5 && windstr < 12.5) {
-		markerImageNamePath += 'mark010.png';
+		markerImageNamePath += 'mark010'+warnImg+'.png';
 	} else if (windstr >= 12.5 && windstr < 17.5) {
-		markerImageNamePath += 'mark015.png';
+		markerImageNamePath += 'mark015'+warnImg+'.png';
 	} else if (windstr >= 17.5 && windstr < 22.5) {
-		markerImageNamePath += 'mark020.png';
+		markerImageNamePath += 'mark020'+warnImg+'.png';
 	} else if (windstr >= 22.5 && windstr < 27.5) {
-		markerImageNamePath += 'mark025.png';
+		markerImageNamePath += 'mark025'+warnImg+'.png';
 	} else if (windstr >= 27.5 && windstr < 32.5) {
-		markerImageNamePath += 'mark030.png';
+		markerImageNamePath += 'mark030'+warnImg+'.png';
 	} else if (windstr >= 32.5 && windstr < 37.5) {
-		markerImageNamePath += 'mark035.png';
+		markerImageNamePath += 'mark035'+warnImg+'.png';
 	} else if (windstr >= 37.5 && windstr < 42.5) {
-		markerImageNamePath += 'mark040.png';
+		markerImageNamePath += 'mark040'+warnImg+'.png';
 	} else if (windstr >= 42.5 && windstr < 47.5) {
-		markerImageNamePath += 'mark045.png';
+		markerImageNamePath += 'mark045'+warnImg+'.png';
 	} else if (windstr >= 47.5 && windstr < 52.5) {
-		markerImageNamePath += 'mark050.png';
+		markerImageNamePath += 'mark050'+warnImg+'.png';
 	} else if (windstr >= 52.5 && windstr < 57.5) {
-		markerImageNamePath += 'mark055.png';
+		markerImageNamePath += 'mark055'+warnImg+'.png';
 	} else if (windstr >= 57.5 && windstr < 62.5) {
-		markerImageNamePath += 'mark060.png';
+		markerImageNamePath += 'mark060'+warnImg+'.png';
 	} else if (windstr >= 62.5 && windstr < 67.5) {
-		markerImageNamePath += 'mark065.png';
+		markerImageNamePath += 'mark065'+warnImg+'.png';
 	} else if (windstr >= 67.5 && windstr < 72.5) {
-		markerImageNamePath += 'mark070.png';
+		markerImageNamePath += 'mark070'+warnImg+'.png';
 	} else if (windstr >= 72.5 && windstr < 77.5) {
-		markerImageNamePath += 'mark075.png';
+		markerImageNamePath += 'mark075'+warnImg+'.png';
 	} else if (windstr >= 77.5 && windstr < 82.5) {
-		markerImageNamePath += 'mark080.png';
+		markerImageNamePath += 'mark080'+warnImg+'.png';
 	} else if (windstr >= 82.5 && windstr < 87.5) {
-		markerImageNamePath += 'mark085.png';
+		markerImageNamePath += 'mark085'+warnImg+'.png';
 	} else if (windstr >= 87.5 && windstr < 92.5) {
-		markerImageNamePath += 'mark090.png';
+		markerImageNamePath += 'mark090'+warnImg+'.png';
 	} else if (windstr >= 92.5 && windstr < 97.5) {
-		markerImageNamePath += 'mark095.png';
+		markerImageNamePath += 'mark095'+warnImg+'.png';
 	} else if (windstr >= 97.5) {
-		markerImageNamePath += 'mark100.png';
+		markerImageNamePath += 'mark100'+warnImg+'.png';
 	}
 
 	//move the text a bit lower if the wavearrow points down
@@ -369,19 +396,6 @@ var generateWORM = function (identifier, type, lon, lat, scale, winddir, windstr
 	}
 
     //TODO: cleanup windmarker for markertext items
-
-    //TODO: rename iconfeatureX to something that makes sense
-
-    //MARKERTEXT
-    // var iconFeature0 = new ol.Feature({
-    //     geometry: new ol.geom.Point([lon, lat]).transform('EPSG:4326', 'EPSG:3857'),
-    //     name: 'WOR_textmarker',
-    //     type: type,
-    //     identifier: identifier,
-    //     src: 'images/emptyimage.png' //just anything
-    // });
-    // iconFeature0.setStyle(retWORMTextStyle(scale, markertext)); //change stylíng
-    // iconFeature0.setId(type + '_textmarker');
 
     //WAVEARROW
 	var iconFeature1 = new ol.Feature({

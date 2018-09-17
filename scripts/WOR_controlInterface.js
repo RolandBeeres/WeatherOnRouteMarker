@@ -15,7 +15,7 @@ function controlinterfacehide(hide){
         document.getElementById("mapcontrolinterfacecover").style.left = "-20000px"; //allow interaction
         document.getElementById("mapcontrolinterface").classList.remove('deny-pointerevents');
         if(controlinterface_texttoggle_enabled === true){
-            for(var i=0;i!=route.waypoints.length;i++){
+            for(var i=0;i!==route.waypoints.length;i++){
                 updateRouteWORMTextFunction(i);
             }
         }

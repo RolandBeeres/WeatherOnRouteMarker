@@ -17,22 +17,22 @@ var retSimulatedWeatherData = function(){
             lon: -15.0, //for wiki reference
             time: "2018-07-06T11:00:00.000+0000", //for wiki reference
             winddir: {
-                forecast: demo.winddir += 45 //adds a bit to make the map look sweet
+                forecast: demo.winddir = getRandomInt(180,360) //adds a bit to make the map look sweet
             },
             windspeed: {
-                forecast: demo.windspeed += 3
+                forecast: demo.windspeed = getRandomInt(0,25)
             },
             currentdir: {
-                forecast: demo.currentdir += -30
+                forecast: demo.currentdir = getRandomInt(180, 270)
             },
             currentspeed: {
-                forecast: demo.currentspeed += 0.1
+                forecast: demo.currentspeed = (getRandomInt(1, 200) / 400)
             },
             wavedir: {
-                forecast: demo.wavedir += 40
+                forecast: demo.wavedir = (demo.winddir - getRandomInt(0,60))
             },
             waveheight: {
-                forecast: demo.waveheight += 0.3
+                forecast: demo.waveheight = (getRandomInt(1,8)/10) * (demo.windspeed/4)
             },
             waveperiod: {
                 forecast: demo.waveperiod += 0
